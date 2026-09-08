@@ -1,0 +1,24 @@
+{
+  "name": "hackpair-backend",
+  "version": "1.0.0",
+  "description": "Developers meet developers",
+  "homepage": "https://github.com/manojdaramon/hackpair-backend#readme",
+  "bugs": {
+    "url": "https://github.com/manojdaramon/hackpair-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manojdaramon/hackpair-backend.git"
+  },
+  "license": "ISC",
+  "author": "Manoj Daramon",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/app.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
