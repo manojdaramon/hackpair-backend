@@ -11,13 +11,10 @@ app.use("/main", (req, res) => {
     res.send("another route");
 });
 
+app.use(express.json());
+
 app.post("/signup", async (req, res) => {
-    const user = new User({
-        firstName: "Manoj",
-        lastName: "Daramon",
-        emailId: "[EMAIL_ADDRESS]",
-        password: "[PASSWORD]",
-    });
+    const user = new User(req.body);
 
     try {
         await user.save();
