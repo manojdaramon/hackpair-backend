@@ -30,11 +30,6 @@ const userSchema = new mongoose.Schema(
         password: {
             type: String,
             required: [true, "Password is required"],
-            validate(value) {
-                if (!validator.isStrongPassword(value)) {
-                    throw new Error("Password is not strong enough. Must include at least 8 characters, 1 uppercase, 1 lowercase, 1 number, and 1 symbol.");
-                }
-            },
         },
         age: {
             type: Number,

@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const validator = require("validator");
+const bcrypt = require("bcrypt");
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateSignUpData, validateEditProfileData } = require("./utils/validation");
@@ -25,11 +26,14 @@ app.post("/signup", async (req, res) => {
 
         const { firstName, lastName, email, emailId, password, age, gender, photoUrl, about, skills } = req.body;
 
+        // Encrypt the password using bcrypt
+        const passwordHash = await bcrypt.hash(password, 10);
+
         const user = new User({
             firstName,
             lastName,
             email: email || emailId,
-            password,
+            password: passwordHash,
             age,
             gender,
             photoUrl,
@@ -44,6 +48,36 @@ app.post("/signup", async (req, res) => {
             return res.status(400).send("Error saving the user: Email already exists");
         }
         res.status(400).send("Error saving the user: " + err.message);
+    }
+});
+
+// Login API - POST /login
+app.post("/login", async (req, res) => {
+    try {
+        const { email, emailId, password } = req.body;
+        const userEmail = email || emailId;
+
+        if (!userEmail || !password) {
+            return res.status(400).send("Email and password are required");
+        }
+
+        if (!validator.isEmail(userEmail)) {
+            return res.status(400).send("Invalid email address: " + userEmail);
+        }
+
+        const user = await User.findOne({ email: userEmail.toLowerCase().trim() });
+        if (!user) {
+            return res.status(400).send("Invalid credentials");
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            return res.status(400).send("Invalid credentials");
+        }
+
+        res.send("Login Successful!");
+    } catch (err) {
+        res.status(400).send("ERROR: " + err.message);
     }
 });
 
