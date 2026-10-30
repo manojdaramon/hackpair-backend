@@ -2,13 +2,18 @@ const express = require("express");
 const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateSignUpData, validateEditProfileData } = require("./utils/validation");
 
+const JWT_SECRET = process.env.JWT_SECRET || "DEV@HackPair$790";
+
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.get("/test", (req, res) => {
     res.send("Server started ");
@@ -75,11 +80,48 @@ app.post("/login", async (req, res) => {
             return res.status(400).send("Invalid credentials");
         }
 
+        // Create a JWT Token
+        const token = jwt.sign({ _id: user._id }, JWT_SECRET, {
+            expiresIn: "7d",
+        });
+
+        // Add token to cookie and send response back to user
+        res.cookie("token", token, {
+            expires: new Date(Date.now() + 7 * 24 * 3600000),
+        });
+
         res.send("Login Successful!");
     } catch (err) {
         res.status(400).send("ERROR: " + err.message);
     }
 });
+
+// Get Profile API - GET /profile (and /profile/view)
+const profileHandler = async (req, res) => {
+    try {
+        const { token } = req.cookies;
+
+        if (!token) {
+            return res.status(401).send("Please Login!");
+        }
+
+        // Validate and decode the JWT token
+        const decodedMessage = jwt.verify(token, JWT_SECRET);
+        const { _id } = decodedMessage;
+
+        const user = await User.findById(_id);
+        if (!user) {
+            return res.status(404).send("User not found");
+        }
+
+        res.send(user);
+    } catch (err) {
+        res.status(400).send("ERROR: " + err.message);
+    }
+};
+
+app.get("/profile", profileHandler);
+app.get("/profile/view", profileHandler);
 
 // Get User by email - GET /user
 app.get("/user", async (req, res) => {
