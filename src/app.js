@@ -74,15 +74,13 @@ app.post("/login", async (req, res) => {
             return res.status(400).send("Invalid credentials");
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
+        const isPasswordValid = await user.validatePassword(password);
         if (!isPasswordValid) {
             return res.status(400).send("Invalid credentials");
         }
 
-        // Create a JWT Token
-        const token = jwt.sign({ _id: user._id }, JWT_SECRET, {
-            expiresIn: "7d",
-        });
+        // Create a JWT Token using schema method
+        const token = await user.getJWT();
 
         // Add token to cookie and send response back to user
         res.cookie("token", token, {
@@ -128,7 +126,7 @@ const sendConnectionRequestHandler = async (req, res) => {
 app.post("/sendConnectionRequest", userAuth, sendConnectionRequestHandler);
 app.get("/sendConnectionRequest", userAuth, sendConnectionRequestHandler);
 
-// Get User by email - GET /user
+// Get User by email - GET /user      
 app.get("/user", async (req, res) => {
     const userEmail = req.query.email || req.body?.email || req.body?.emailId;
 
@@ -245,3 +243,4 @@ connectDB()
     .catch((err) => {
         console.error("Database cannot be connected!!", err.message);
     });
+
