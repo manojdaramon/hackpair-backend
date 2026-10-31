@@ -7,8 +7,7 @@ const jwt = require("jsonwebtoken");
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateSignUpData, validateEditProfileData } = require("./utils/validation");
-
-const JWT_SECRET = process.env.JWT_SECRET || "DEV@HackPair$790";
+const { userAuth, JWT_SECRET } = require("./middlewares/auth");
 
 const app = express();
 
@@ -97,31 +96,37 @@ app.post("/login", async (req, res) => {
 });
 
 // Get Profile API - GET /profile (and /profile/view)
-const profileHandler = async (req, res) => {
+app.get("/profile", userAuth, async (req, res) => {
     try {
-        const { token } = req.cookies;
-
-        if (!token) {
-            return res.status(401).send("Please Login!");
-        }
-
-        // Validate and decode the JWT token
-        const decodedMessage = jwt.verify(token, JWT_SECRET);
-        const { _id } = decodedMessage;
-
-        const user = await User.findById(_id);
-        if (!user) {
-            return res.status(404).send("User not found");
-        }
-
+        const user = req.user;
         res.send(user);
+    } catch (err) {
+        res.status(400).send("ERROR: " + err.message);
+    }
+});
+
+app.get("/profile/view", userAuth, async (req, res) => {
+    try {
+        const user = req.user;
+        res.send(user);
+    } catch (err) {
+        res.status(400).send("ERROR: " + err.message);
+    }
+});
+
+// Send Connection Request API - POST /sendConnectionRequest
+const sendConnectionRequestHandler = async (req, res) => {
+    try {
+        const user = req.user;
+        console.log("Sending a connection request");
+        res.send(user.firstName + " sent the Connect Request!");
     } catch (err) {
         res.status(400).send("ERROR: " + err.message);
     }
 };
 
-app.get("/profile", profileHandler);
-app.get("/profile/view", profileHandler);
+app.post("/sendConnectionRequest", userAuth, sendConnectionRequestHandler);
+app.get("/sendConnectionRequest", userAuth, sendConnectionRequestHandler);
 
 // Get User by email - GET /user
 app.get("/user", async (req, res) => {
