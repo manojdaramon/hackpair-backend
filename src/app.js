@@ -9,6 +9,7 @@ const { validateEditProfileData } = require("./utils/validation");
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/requests");
+const userRouter = require("./routes/user");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(cookieParser());
 app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);
+app.use("/", userRouter);
 
 app.get("/test", (req, res) => {
     res.send("Server started ");
@@ -48,16 +50,6 @@ app.get("/user", async (req, res) => {
             return res.status(404).send("User not found");
         }
 
-        res.send(users);
-    } catch (err) {
-        res.status(400).send("Something went wrong: " + err.message);
-    }
-});
-
-// Feed API - GET /feed - get all the users from the database
-app.get("/feed", async (req, res) => {
-    try {
-        const users = await User.find({});
         res.send(users);
     } catch (err) {
         res.status(400).send("Something went wrong: " + err.message);

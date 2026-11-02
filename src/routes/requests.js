@@ -70,6 +70,58 @@ requestRouter.post(
     }
 );
 
+// Review Connection Request API - POST /request/review/:status/:requestId
+requestRouter.post(
+    "/request/review/:status/:requestId",
+    userAuth,
+    async (req, res) => {
+        try {
+            const loggedInUser = req.user;
+            const { status, requestId } = req.params;
+
+            // 1. Validate status: only "accepted" and "rejected" allowed
+            const allowedStatus = ["accepted", "rejected"];
+            if (!allowedStatus.includes(status)) {
+                return res
+                    .status(400)
+                    .json({ message: "Status not allowed! Allowed statuses: accepted, rejected" });
+            }
+
+            // 2. Validate requestId format
+            if (!mongoose.Types.ObjectId.isValid(requestId)) {
+                return res.status(400).json({ message: "Invalid Request ID" });
+            }
+
+            // 3. Find connection request:
+            // - _id must match requestId
+            // - toUserId must match loggedInUser._id (only the recipient can review)
+            // - status must be "interested" (cannot review already accepted/rejected/ignored requests)
+            const connectionRequest = await ConnectionRequest.findOne({
+                _id: requestId,
+                toUserId: loggedInUser._id,
+                status: "interested",
+            });
+
+            if (!connectionRequest) {
+                return res
+                    .status(404)
+                    .json({ message: "Connection request not found" });
+            }
+
+            // 4. Update status and save
+            connectionRequest.status = status;
+            const data = await connectionRequest.save();
+
+            res.json({
+                message: "Connection request " + status,
+                data,
+            });
+        } catch (err) {
+            res.status(400).send("ERROR: " + err.message);
+        }
+    }
+);
+
 // Legacy handler for earlier chapter
 const sendConnectionRequestHandler = async (req, res) => {
     try {
