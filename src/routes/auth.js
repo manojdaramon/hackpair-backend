@@ -70,7 +70,7 @@ authRouter.post("/login", async (req, res) => {
             expires: new Date(Date.now() + 7 * 24 * 3600000),
         });
 
-        res.send("Login Successful!");
+        res.send(user);
     } catch (err) {
         res.status(400).send("ERROR: " + err.message);
     }

@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const validator = require("validator");
 const cookieParser = require("cookie-parser");
+const cors = require("cors");
 const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateEditProfileData } = require("./utils/validation");
@@ -13,6 +14,12 @@ const userRouter = require("./routes/user");
 
 const app = express();
 
+app.use(
+    cors({
+        origin: ["http://localhost:3000", "http://localhost:5173"],
+        credentials: true,
+    })
+);
 app.use(express.json());
 app.use(cookieParser());
 
