@@ -41,7 +41,7 @@ const validateSignUpData = (req) => {
         }
     }
 
-    if (photoUrl && !validator.isURL(photoUrl)) {
+    if (photoUrl && !validator.isURL(photoUrl) && !photoUrl.startsWith("data:image/")) {
         throw new Error("Invalid Photo URL: " + photoUrl);
     }
 
@@ -114,7 +114,7 @@ const validateEditProfileData = (req) => {
     }
 
     if (photoUrl !== undefined && photoUrl !== null && photoUrl !== "") {
-        if (!validator.isURL(photoUrl)) {
+        if (!validator.isURL(photoUrl) && !photoUrl.startsWith("data:image/")) {
             throw new Error("Invalid Photo URL: " + photoUrl);
         }
     }

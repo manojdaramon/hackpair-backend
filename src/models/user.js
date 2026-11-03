@@ -55,14 +55,14 @@ const userSchema = new mongoose.Schema(
             default: "https://geographyandyou.com/images/user-profile.png",
             trim: true,
             validate(value) {
-                if (!validator.isURL(value)) {
+                if (!validator.isURL(value) && !value.startsWith("data:image/")) {
                     throw new Error("Invalid Photo URL: " + value);
                 }
             },
         },
         about: {
             type: String,
-            default: "This is a default about of the user!",
+            default: "Passionate developer looking to team up for upcoming hackathons.",
             trim: true,
             maxLength: [500, "About cannot exceed 500 characters"],
         },
