@@ -281,8 +281,50 @@ const sendConnectionAcceptedEmail = async ({ recipient, accepter }) => {
     }
 };
 
+/**
+ * Send Password Reset Link Email
+ */
+const sendPasswordResetEmail = async ({ user, resetUrl }) => {
+    try {
+        const firstName = user.firstName || "Developer";
+
+        const contentHtml = `
+            <h2 style="color: #111827; margin: 0 0 16px 0; font-size: 20px;">Password Reset Request 🔐</h2>
+            <p>Hi ${firstName},</p>
+            <p>We received a request to reset the password for your HackPair account.</p>
+            <p>Click the button below to reset your password. This link is valid for <strong>15 minutes</strong>:</p>
+
+            <div style="text-align: center; margin: 32px 0;">
+                <a href="${resetUrl}" style="background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-block;">
+                    Reset Your Password &rarr;
+                </a>
+            </div>
+
+            <p style="color: #6b7280; font-size: 13px; line-height: 1.5;">
+                If you did not request a password reset, you can safely ignore this email. Your password will remain unchanged.
+            </p>
+        `;
+
+        const html = wrapEmailTemplate({
+            title: "Reset Your HackPair Password",
+            preheader: "Reset instructions for your HackPair account.",
+            contentHtml,
+        });
+
+        return await dispatchEmail({
+            to: user.email,
+            subject: "🔐 Reset Your HackPair Password",
+            html,
+        });
+    } catch (error) {
+        console.error(`❌ [EmailService] Failed to send password reset email to ${user?.email}:`, error.message);
+        return null;
+    }
+};
+
 module.exports = {
     sendWelcomeEmail,
     sendConnectionRequestEmail,
     sendConnectionAcceptedEmail,
+    sendPasswordResetEmail,
 };

@@ -74,9 +74,33 @@ const userSchema = new mongoose.Schema(
                 }
             },
         },
+        resetPasswordToken: {
+            type: String,
+        },
+        resetPasswordExpires: {
+            type: Date,
+        },
     },
     {
         timestamps: true,
+        toJSON: {
+            transform: function (doc, ret) {
+                delete ret.password;
+                delete ret.resetPasswordToken;
+                delete ret.resetPasswordExpires;
+                delete ret.__v;
+                return ret;
+            },
+        },
+        toObject: {
+            transform: function (doc, ret) {
+                delete ret.password;
+                delete ret.resetPasswordToken;
+                delete ret.resetPasswordExpires;
+                delete ret.__v;
+                return ret;
+            },
+        },
     }
 );
 

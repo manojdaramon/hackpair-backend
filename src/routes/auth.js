@@ -1,10 +1,11 @@
 const express = require("express");
 const authRouter = express.Router();
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const validator = require("validator");
 const User = require("../models/user");
 const { validateSignUpData } = require("../utils/validation");
-const { sendWelcomeEmail } = require("../services/emailService");
+const { sendWelcomeEmail, sendPasswordResetEmail } = require("../services/emailService");
 
 // Signup API - POST /signup
 authRouter.post("/signup", async (req, res) => {
@@ -79,9 +80,13 @@ authRouter.post("/login", async (req, res) => {
         // Create a JWT Token using schema method
         const token = await user.getJWT();
 
-        // Add token to cookie and send response back to user
+        // Add token to cookie with secure flags
+        const isProduction = process.env.NODE_ENV === "production";
         res.cookie("token", token, {
             expires: new Date(Date.now() + 7 * 24 * 3600000),
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
         });
 
         res.send(user);
@@ -92,18 +97,76 @@ authRouter.post("/login", async (req, res) => {
 
 // Logout API - POST /logout
 authRouter.post("/logout", async (req, res) => {
+    const isProduction = process.env.NODE_ENV === "production";
     res.cookie("token", null, {
-        expires: new Date(Date.now()),
+        expires: new Date(0),
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
     });
     res.send("Logout Successful!!");
 });
 
-// Forgot Password API - POST /forgotPassword (and /forgot-password)
+// Request Password Reset API - POST /forgotPassword (and /forgot-password)
 authRouter.post(["/forgotPassword", "/forgot-password"], async (req, res) => {
     try {
-        const { email, emailId, newPassword, password } = req.body;
+        const { email, emailId } = req.body;
+        const userEmail = email || emailId;
+
+        if (!userEmail) {
+            return res.status(400).send("Email is required");
+        }
+
+        if (!validator.isEmail(userEmail)) {
+            return res.status(400).send("Invalid email address: " + userEmail);
+        }
+
+        const normalizedEmail = userEmail.toLowerCase().trim();
+        const user = await User.findOne({ email: normalizedEmail });
+
+        // Always return success message to prevent user enumeration
+        if (!user) {
+            return res.send(
+                "If an account with that email exists, we have sent password reset instructions to it."
+            );
+        }
+
+        // Generate cryptographically secure random token (32 bytes = 64 hex chars)
+        const resetToken = crypto.randomBytes(32).toString("hex");
+
+        // Hash token before storing in database (OWASP security standard)
+        const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+        user.resetPasswordToken = hashedToken;
+        user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+        await user.save();
+
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
+
+        // Send reset email asynchronously
+        sendPasswordResetEmail({ user, resetUrl }).catch((err) =>
+            console.error("Password reset email error:", err.message)
+        );
+
+        res.send(
+            "If an account with that email exists, we have sent password reset instructions to it."
+        );
+    } catch (err) {
+        res.status(400).send("ERROR: " + err.message);
+    }
+});
+
+// Reset Password with Token API - POST /resetPassword (and /reset-password)
+authRouter.post(["/resetPassword", "/reset-password"], async (req, res) => {
+    try {
+        const { token, email, emailId, newPassword, password } = req.body;
         const userEmail = email || emailId;
         const updatedPassword = newPassword || password;
+
+        if (!token) {
+            return res.status(400).send("Reset token is required");
+        }
 
         if (!userEmail) {
             return res.status(400).send("Email is required");
@@ -113,27 +176,35 @@ authRouter.post(["/forgotPassword", "/forgot-password"], async (req, res) => {
             return res.status(400).send("New password is required");
         }
 
-        if (!validator.isEmail(userEmail)) {
-            return res.status(400).send("Invalid email address: " + userEmail);
-        }
-
         if (!validator.isStrongPassword(updatedPassword)) {
             return res.status(400).send(
                 "Please enter a strong password (minimum 8 characters, at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 symbol)"
             );
         }
 
-        const user = await User.findOne({ email: userEmail.toLowerCase().trim() });
+        // Hash the incoming token to match against the hashed token in database
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+        const normalizedEmail = userEmail.toLowerCase().trim();
+
+        const user = await User.findOne({
+            email: normalizedEmail,
+            resetPasswordToken: hashedToken,
+            resetPasswordExpires: { $gt: Date.now() },
+        });
+
         if (!user) {
-            return res.status(404).send("User not found with this email");
+            return res.status(400).send(
+                "Invalid or expired password reset token. Please request a new one."
+            );
         }
 
-        // Encrypt the new password
-        const passwordHash = await bcrypt.hash(updatedPassword, 10);
-        user.password = passwordHash;
+        // Update password and clear reset token
+        user.password = await bcrypt.hash(updatedPassword, 10);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpires = undefined;
         await user.save();
 
-        res.send("Password updated successfully! Please login with your new password.");
+        res.send("Password reset successfully! Please log in with your new password.");
     } catch (err) {
         res.status(400).send("ERROR: " + err.message);
     }

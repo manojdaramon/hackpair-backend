@@ -1,12 +1,14 @@
-const mongoose = require("mongoose")
-const dns = require("dns")
+const mongoose = require("mongoose");
+const dns = require("dns");
 
-dns.setServers(["8.8.8.8", "8.8.4.4"])
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const connectDB = async () => {
-    await mongoose.connect(
-        "mongodb+srv://immanoj2830_db_user:manoj2830@namaste-nodejs.rjypov2.mongodb.net/hackpair?appName=namaste-nodejs"
-    );
+    const mongoUri = process.env.MONGODB_URI;
+    if (!mongoUri) {
+        throw new Error("MONGODB_URI environment variable is not defined in .env!");
+    }
+    await mongoose.connect(mongoUri);
 };
 
 module.exports = connectDB;
