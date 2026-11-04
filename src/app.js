@@ -1,4 +1,5 @@
 require("dotenv").config();
+const http = require("http");
 const express = require("express");
 const mongoose = require("mongoose");
 const validator = require("validator");
@@ -10,11 +11,13 @@ const connectDB = require("./config/database");
 const User = require("./models/user");
 const { validateEditProfileData } = require("./utils/validation");
 const { userAuth } = require("./middlewares/auth");
+const { initializeSocket } = require("./utils/socket");
 
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/requests");
 const userRouter = require("./routes/user");
+const chatRouter = require("./routes/chat");
 
 const app = express();
 
@@ -67,6 +70,7 @@ app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);
 app.use("/", userRouter);
+app.use("/", chatRouter);
 
 app.get("/health", (req, res) => {
     res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
@@ -183,11 +187,18 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 7777;
 
+// Create HTTP server wrapping Express application
+const server = http.createServer(app);
+
+// Initialize Socket.IO with CORS settings
+initializeSocket(server, allowedOrigins);
+
 connectDB()
     .then(() => {
         console.log("Database connection established...");
-        app.listen(PORT, () => {
+        server.listen(PORT, () => {
             console.log(`Server is successfully listening on port ${PORT}...`);
+            console.log(`⚡ Live chat WebSocket ready on port ${PORT}`);
         });
     })
     .catch((err) => {
