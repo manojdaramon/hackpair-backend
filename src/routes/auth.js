@@ -4,6 +4,7 @@ const bcrypt = require("bcrypt");
 const validator = require("validator");
 const User = require("../models/user");
 const { validateSignUpData } = require("../utils/validation");
+const { sendWelcomeEmail } = require("../services/emailService");
 
 // Signup API - POST /signup
 authRouter.post("/signup", async (req, res) => {
@@ -12,6 +13,13 @@ authRouter.post("/signup", async (req, res) => {
         validateSignUpData(req);
 
         const { firstName, lastName, email, emailId, password, age, gender, photoUrl, about, skills } = req.body;
+        const userEmail = (email || emailId)?.toLowerCase().trim();
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email: userEmail });
+        if (existingUser) {
+            return res.status(400).send("You already have an account! Please log in.");
+        }
 
         // Encrypt the password using bcrypt
         const passwordHash = await bcrypt.hash(password, 10);
@@ -19,7 +27,7 @@ authRouter.post("/signup", async (req, res) => {
         const user = new User({
             firstName,
             lastName,
-            email: email || emailId,
+            email: userEmail,
             password: passwordHash,
             age,
             gender,
@@ -29,10 +37,16 @@ authRouter.post("/signup", async (req, res) => {
         });
 
         await user.save();
+
+        // Send welcome email asynchronously (non-blocking)
+        sendWelcomeEmail(user).catch((err) =>
+            console.error("Welcome email error:", err.message)
+        );
+
         res.status(201).send("User Added Successfully!");
     } catch (err) {
         if (err.code === 11000) {
-            return res.status(400).send("Error saving the user: Email already exists");
+            return res.status(400).send("You already have an account! Please log in.");
         }
         res.status(400).send("Error saving the user: " + err.message);
     }

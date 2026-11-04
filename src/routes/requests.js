@@ -4,6 +4,10 @@ const requestRouter = express.Router();
 const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
+const {
+    sendConnectionRequestEmail,
+    sendConnectionAcceptedEmail,
+} = require("../services/emailService");
 
 // Send Connection Request API - POST /request/send/:status/:toUserId
 requestRouter.post(
@@ -56,6 +60,16 @@ requestRouter.post(
             });
 
             const data = await connectionRequest.save();
+
+            // Notify recipient asynchronously when interest is expressed
+            if (status === "interested") {
+                sendConnectionRequestEmail({
+                    recipient: toUser,
+                    sender: req.user,
+                }).catch((err) =>
+                    console.error("Connection request email error:", err.message)
+                );
+            }
 
             res.json({
                 message:
@@ -111,6 +125,24 @@ requestRouter.post(
             // 4. Update status and save
             connectionRequest.status = status;
             const data = await connectionRequest.save();
+
+            // Notify original sender asynchronously when request is accepted
+            if (status === "accepted") {
+                User.findById(connectionRequest.fromUserId)
+                    .then((originalSender) => {
+                        if (originalSender) {
+                            sendConnectionAcceptedEmail({
+                                recipient: originalSender,
+                                accepter: loggedInUser,
+                            }).catch((err) =>
+                                console.error("Connection accepted email error:", err.message)
+                            );
+                        }
+                    })
+                    .catch((err) =>
+                        console.error("Error finding sender for accept email:", err.message)
+                    );
+            }
 
             res.json({
                 message: "Connection request " + status,
